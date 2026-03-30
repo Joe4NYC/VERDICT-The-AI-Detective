@@ -738,7 +738,7 @@ SETUP INSTRUCTIONS
 
     .judge-output {
       min-height: 200px;
-      max-height: 500px;
+      max-height: none;
       overflow-y: auto;
       border: 1px solid var(--divider);
       border-radius: 12px;
@@ -1009,9 +1009,9 @@ Rules:
 - Keep answers concise: 2-5 sentences.`
       }
     ];
-your response concise — maximum 400 words. Always complete your sentences and end with a definitive conclusion
+
     const judgePrompt = `You are Judge Harrison, a stern British magistrate overseeing this murder trial.
-For verdicts: speak dramatically, reference specific evidence mentioned, reveal the truth after the verdict is delivered. Keep under 200 words.
+For verdicts: speak dramatically, reference specific evidence mentioned, reveal the truth after the verdict is delivered. Keep your verdict response concise — maximum 400 words. Always complete your sentences and thoughts. End with a definitive conclusion.
 For contradiction analysis: list specific contradictions found between suspect statements as numbered points. Be analytical and precise. Under 150 words.`;
 
     const appState = {
