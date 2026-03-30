@@ -536,6 +536,29 @@ SETUP INSTRUCTIONS
       text-align: center;
     }
 
+    .timer-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .timer.idle {
+      opacity: 0.68;
+      color: var(--text-muted);
+      border-color: rgba(138, 128, 112, 0.45);
+      box-shadow: none;
+    }
+
+    .timer-hint {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      text-align: center;
+      opacity: 0.8;
+    }
+
     .timer.warn {
       color: #ffcc85;
       border-color: rgba(201, 151, 58, 0.75);
@@ -1013,7 +1036,10 @@ SETUP INSTRUCTIONS
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               <button class="btn ghost tiny" id="interrogationEvidenceBtn"><i data-lucide="pin"></i> Board</button>
-              <div class="timer" id="timerDisplay">03:00</div>
+              <div class="timer-stack">
+                <div class="timer" id="timerDisplay">03:00</div>
+                <div class="timer-hint" id="timerHint">Timer starts on first question</div>
+              </div>
             </div>
           </div>
           <div class="chat-history" id="chatHistory"></div>
@@ -1190,6 +1216,7 @@ Rules:
       nextAskAllowedAt: 0,
       askCooldownHandle: null,
       evidenceFeedbackTimers: new Map(),
+      timerWaitingForFirstQuestion: false,
       judged: false
     };
 
@@ -1211,6 +1238,7 @@ Rules:
       interrogationLeft: document.getElementById("interrogationLeft"),
       chatTitle: document.getElementById("chatTitle"),
       timerDisplay: document.getElementById("timerDisplay"),
+      timerHint: document.getElementById("timerHint"),
       chatHistory: document.getElementById("chatHistory"),
       questionInput: document.getElementById("questionInput"),
       askBtn: document.getElementById("askBtn"),
@@ -1477,6 +1505,7 @@ Rules:
     }
 
     function openInterrogation(suspectId) {
+      stopTimer();
       appState.currentSuspectId = suspectId;
       // Restore timer from persistent storage; check if session already expired
       appState.sessionSeconds = gameState.suspects[suspectId].timerRemaining;
@@ -1486,12 +1515,30 @@ Rules:
       renderInterrogationLeft();
       renderChat();
       switchScreen("interrogation");
-      startTimer();
+
+      if (appState.sessionEnded) {
+        tickTimer();
+        setTimerWaitingState(false);
+      } else if (appState.sessionSeconds < 180) {
+        startTimer();
+      } else {
+        tickTimer();
+        setTimerWaitingState(true);
+      }
+
       setAskEnabled(true);
     }
 
+    function setTimerWaitingState(waiting) {
+      appState.timerWaitingForFirstQuestion = waiting;
+      el.timerDisplay.classList.toggle("idle", waiting);
+      el.timerHint.style.display = waiting ? "block" : "none";
+    }
+
     function startTimer() {
+      if (appState.sessionEnded || appState.sessionSeconds <= 0) return;
       stopTimer();
+      setTimerWaitingState(false);
       tickTimer();
       appState.timerHandle = setInterval(() => {
         appState.sessionSeconds -= 1;
@@ -1526,6 +1573,7 @@ Rules:
 
     function endSessionByTimeout() {
       stopTimer();
+      setTimerWaitingState(false);
       appState.sessionEnded = true;
       setAskEnabled(false);
       pushSystemMessage(appState.currentSuspectId, "⏱️ Session expired. The suspect asks for a recess.");
@@ -1585,6 +1633,11 @@ Rules:
         renderChat();
         return;
       }
+
+      if (!appState.timerHandle && appState.sessionSeconds === 180 && !appState.sessionEnded) {
+        startTimer();
+      }
+
       el.questionInput.value = "";
       appState.suspectConversations[suspectId].push({
         role: "user",
@@ -1885,6 +1938,7 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
       appState.askCooldownHandle = null;
       appState.evidenceFeedbackTimers.forEach((timer) => clearTimeout(timer));
       appState.evidenceFeedbackTimers.clear();
+      appState.timerWaitingForFirstQuestion = false;
       appState.judged = false;
       stopTimer();
 
