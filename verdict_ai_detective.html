@@ -593,6 +593,36 @@ SETUP INSTRUCTIONS
       font-family: "Playfair Display", serif;
       font-style: italic;
       color: #efe6d7;
+      white-space: normal;
+    }
+
+    .message-content p,
+    .analysis-box p,
+    .judge-output p {
+      margin: 0 0 10px;
+    }
+
+    .message-content p:last-child,
+    .analysis-box p:last-child,
+    .judge-output p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-content ul,
+    .analysis-box ul,
+    .judge-output ul {
+      margin: 0 0 10px 20px;
+      padding-left: 0;
+    }
+
+    .message-content h2,
+    .analysis-box h2,
+    .judge-output h2,
+    .message-content h3,
+    .analysis-box h3,
+    .judge-output h3 {
+      font-style: normal;
+      margin: 0 0 8px;
     }
 
     .message-controls {
@@ -759,7 +789,7 @@ SETUP INSTRUCTIONS
       border-radius: 12px;
       padding: 12px;
       background: rgba(18, 15, 12, 0.9);
-      white-space: pre-wrap;
+      white-space: normal;
       line-height: 1.5;
     }
 
@@ -796,7 +826,7 @@ SETUP INSTRUCTIONS
       border-radius: 12px;
       background: rgba(17, 14, 11, 0.94);
       padding: 14px;
-      white-space: pre-wrap;
+      white-space: normal;
       line-height: 1.6;
     }
 
@@ -1225,6 +1255,19 @@ Rules:
       return msg;
     }
 
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/^(?!<[hul])/gm, '<p>')
+        .replace(/(?<![>])$/gm, '</p>');
+    }
+
     function nowStamp() {
       return new Date().toLocaleString("en-GB", {
         hour12: false,
@@ -1406,7 +1449,11 @@ Rules:
       `;
 
       const content = wrapper.querySelector(".message-content");
-      content.textContent = entry.text;
+      if (entry.role === "model") {
+        content.innerHTML = renderMarkdown(escapeHtml(entry.text));
+      } else {
+        content.textContent = entry.text;
+      }
 
       if (entry.role === "model" && !entry.system && entry.text.trim().length > 0) {
         const controls = document.createElement("div");
@@ -1719,9 +1766,9 @@ Rules:
 
       try {
         const reply = await callAI(contradictionAnalysisPrompt, userMessage);
-        el.analysisBox.textContent = reply;
+        el.analysisBox.innerHTML = renderMarkdown(escapeHtml(reply));
       } catch (error) {
-        el.analysisBox.textContent = `API Error: ${friendlyAIError(error)}`;
+        el.analysisBox.innerHTML = renderMarkdown(escapeHtml(`API Error: ${friendlyAIError(error)}`));
       } finally {
         el.analyzeBtn.disabled = false;
       }
@@ -1803,12 +1850,12 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
 
       try {
         const reply = await callAI(judgeVerdictPrompt, userMessage);
-        el.judgeOutput.textContent = reply;
+        el.judgeOutput.innerHTML = renderMarkdown(escapeHtml(reply));
 
         appState.judged = true;
         el.playAgainBtn.style.display = "inline-flex";
       } catch (error) {
-        el.judgeOutput.textContent = `API Error: ${friendlyAIError(error)}`;
+        el.judgeOutput.innerHTML = renderMarkdown(escapeHtml(`API Error: ${friendlyAIError(error)}`));
       } finally {
         el.submitVerdictBtn.disabled = false;
       }
