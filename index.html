@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VERDICT: The AI Detective</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0d0b08;
+      --bg-surface: #1a1714;
+      --bg-elevated: #232018;
+      --accent-gold: #c9973a;
+      --accent-gold-light: #e5b55f;
+      --accent-red: #8b2a2a;
+      --text-primary: #e8e0d0;
+      --text-muted: #a89a88;
+      --text-faint: #5a5248;
+      --divider: #2a2520;
+      --shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.6);
+      --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --transition: 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: "Inter", sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: 
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1' /%3E%3C/svg%3E");
+      background-size: 220px 220px;
+      opacity: 0.04;
+      pointer-events: none;
+      z-index: 1;
+      mix-blend-mode: overlay;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(201, 151, 58, 0.08), transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(139, 42, 42, 0.06), transparent 50%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    main {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+    }
+
+    section {
+      padding: 60px 30px;
+      position: relative;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* HERO SECTION */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 80px 30px;
+      background: linear-gradient(135deg, transparent 0%, rgba(13, 11, 8, 0.8) 100%);
+      border-bottom: 1px solid rgba(201, 151, 58, 0.15);
+    }
+
+    .hero-content {
+      max-width: 900px;
+    }
+
+    .hero h1 {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(3.5rem, 8vw, 6rem);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #f5e6c8;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 40px rgba(201, 151, 58, 0.15);
+      margin-bottom: 16px;
+      line-height: 1;
+      animation: titleFlicker 6s ease-in-out infinite;
+    }
+
+    @keyframes titleFlicker {
+      0%, 100% { opacity: 1; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 40px rgba(201, 151, 58, 0.15); }
+      50% { opacity: 0.98; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 50px rgba(201, 151, 58, 0.25); }
+    }
+
+    .hero h1 span {
+      display: block;
+      font-size: 0.45em;
+      letter-spacing: 0.15em;
+      margin-top: 20px;
+      color: var(--accent-gold-light);
+      font-weight: 500;
+      animation: subtitleFade 8s ease-in-out infinite;
+    }
+
+    @keyframes subtitleFade {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+
+    .hero .tagline {
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      color: var(--text-muted);
+      margin: 40px 0 50px;
+      font-style: italic;
+      line-height: 1.6;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 40px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, rgba(201, 151, 58, 0.35), rgba(201, 151, 58, 0.15));
+      border: 2px solid var(--accent-gold);
+      color: #f5e6c8;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      text-decoration: none;
+      box-shadow: 0 0 0 0 rgba(201, 151, 58, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transform: translateX(-100%);
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(201, 151, 58, 0.5), rgba(201, 151, 58, 0.3));
+      border-color: #e5b55f;
+      box-shadow: 0 0 20px rgba(201, 151, 58, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    #button-hero {
+      z-index: 10;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .scroll-indicator {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: fadeIn 1s ease-in-out 1.5s forwards;
+      opacity: 0;
+    }
+
+    .scroll-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 300ms ease;
+    }
+
+    .scroll-text {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      color: rgba(201, 151, 58, 0.7);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .scroll-arrow {
+      font-size: 1.2rem;
+      color: rgba(201, 151, 58, 0.7);
+      display: block;
+      animation: bounce 1.5s ease-in-out infinite;
+    }
+
+    .scroll-link:hover .scroll-text,
+    .scroll-link:hover .scroll-arrow {
+      color: rgba(201, 151, 58, 1);
+    }
+
+    /* SETUP SECTION */
+    .setup {
+      background: linear-gradient(180deg, rgba(26, 23, 20, 0.5), rgba(13, 11, 8, 0.5));
+      border-top: 1px solid rgba(201, 151, 58, 0.15);
+      border-bottom: 1px solid rgba(201, 151, 58, 0.15);
+    }
+
+    .section-title {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #f5e6c8;
+      margin-bottom: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .section-title::before {
+      content: "⚙️";
+      font-size: 1.2em;
+    }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .setup-card {
+      background: rgba(35, 32, 24, 0.8);
+      border: 1px solid rgba(201, 151, 58, 0.25);
+      border-radius: 8px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .setup-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-gold), transparent);
+    }
+
+    .setup-card h3 {
+      font-family: "Playfair Display", serif;
+      font-size: 1.3rem;
+      color: var(--accent-gold);
+      margin-bottom: 14px;
+      letter-spacing: 0.04em;
+    }
+
+    .setup-card .step-num {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      background: rgba(201, 151, 58, 0.2);
+      border: 1px solid var(--accent-gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent-gold);
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+
+    .setup-card p {
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .command-block {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(201, 151, 58, 0.2);
+      border-radius: 4px;
+      padding: 12px;
+      margin: 16px 0;
+      font-family: "Courier New", monospace;
+      font-size: 0.9rem;
+      color: #d4af37;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      overflow: auto;
+    }
+
+    .copy-btn {
+      flex-shrink: 0;
+      background: rgba(201, 151, 58, 0.2);
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      transition: all 200ms ease;
+    }
+
+    .copy-btn:hover {
+      background: rgba(201, 151, 58, 0.4);
+      box-shadow: 0 0 10px rgba(201, 151, 58, 0.3);
+    }
+
+    .copy-btn.copied {
+      background: rgba(45, 90, 61, 0.4);
+      border-color: #2d5a3d;
+      color: #2d5a3d;
+    }
+
+    .copy-btn.copied::after {
+      content: " ✓";
+    }
+
+    /* RULES SECTION */
+    .rules {
+      background: linear-gradient(180deg, rgba(13, 11, 8, 0.5), rgba(26, 23, 20, 0.5));
+      border-bottom: 1px solid rgba(201, 151, 58, 0.15);
+    }
+
+    .rules .section-title::before {
+      content: "🔍";
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .rule-card {
+      background: linear-gradient(135deg, rgba(35, 32, 24, 0.6), rgba(25, 22, 17, 0.6));
+      border: 1px solid rgba(201, 151, 58, 0.2);
+      border-radius: 8px;
+      padding: 32px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .rule-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(201, 151, 58, 0.1), transparent 60%);
+      opacity: 0;
+      transition: opacity 400ms ease;
+    }
+
+    .rule-card:hover {
+      border-color: rgba(201, 151, 58, 0.5);
+      transform: translateY(-4px);
+      background: linear-gradient(135deg, rgba(35, 32, 24, 0.9), rgba(25, 22, 17, 0.9));
+    }
+
+    .rule-card:hover::before {
+      opacity: 1;
+    }
+
+    .rule-icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      display: block;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      width: 60px;
+      height: 60px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .rule-card h3 {
+      font-family: "Playfair Display", serif;
+      font-size: 1.4rem;
+      color: var(--accent-gold);
+      margin-bottom: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    .rule-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* CASE SECTION */
+    .case {
+      background: linear-gradient(135deg, transparent 0%, rgba(201, 151, 58, 0.03) 50%, transparent 100%);
+      border-top: 1px solid rgba(201, 151, 58, 0.15);
+      border-bottom: 1px solid rgba(201, 151, 58, 0.15);
+    }
+
+    .case .section-title::before {
+      content: "📋";
+    }
+
+    .case-description {
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 60px;
+    }
+
+    .case-file-id {
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .case-description-text {
+      font-family: "Playfair Display", serif;
+      font-size: 1.3rem;
+      line-height: 1.8;
+      color: var(--text-muted);
+      font-style: italic;
+      position: relative;
+    }
+
+    .suspects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+    }
+
+    .suspect-card {
+      background: linear-gradient(135deg, rgba(35, 32, 24, 0.7), rgba(25, 22, 17, 0.7));
+      border: 1px solid var(--divider);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .suspect-card::before {
+      content: "";
+      position: absolute;
+      inset: -100%;
+      background: radial-gradient(circle at 50% 50%, rgba(201, 151, 58, 0.15), transparent 70%);
+      opacity: 0;
+      transition: opacity 400ms ease;
+    }
+
+    .suspect-card:hover {
+      border-color: rgba(201, 151, 58, 0.5);
+      background: linear-gradient(135deg, rgba(35, 32, 24, 0.95), rgba(25, 22, 17, 0.95));
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .suspect-card:hover::before {
+      opacity: 1;
+    }
+
+    .suspect-avatar {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 20px;
+      background: linear-gradient(165deg, #2d271f, #1a1612);
+      border: 2px solid rgba(201, 151, 58, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Playfair Display", serif;
+      font-size: 2.2rem;
+      color: #e7d3ab;
+      position: relative;
+      z-index: 1;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .suspect-name {
+      font-family: "Playfair Display", serif;
+      font-size: 1.15rem;
+      color: #f5e6c8;
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .suspect-title {
+      font-size: 0.85rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* FOOTER SECTION */
+    .footer {
+      background: linear-gradient(180deg, rgba(13, 11, 8, 0.8), rgba(13, 11, 8, 0.95));
+      border-top: 1px solid rgba(201, 151, 58, 0.15);
+      text-align: center;
+      padding: 80px 30px 40px;
+    }
+
+    .footer-content {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .footer h2 {
+      font-family: "Playfair Display", serif;
+      font-size: 2rem;
+      color: #f5e6c8;
+      margin-bottom: 24px;
+      letter-spacing: 0.04em;
+    }
+
+    .footer-text {
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      line-height: 1.8;
+    }
+
+    .footer-status {
+      font-size: 0.85rem;
+      color: var(--text-faint);
+      margin-top: 40px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      section {
+        padding: 40px 20px;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 60px 20px;
+      }
+
+      .setup-grid, .suspects-grid {
+        gap: 16px;
+      }
+
+      .rules-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+      }
+
+      .section-title {
+        font-size: 1.5rem;
+      }
+
+      .rule-card, .suspect-card, .setup-card {
+        padding: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero {
+        padding: 40px 16px;
+      }
+
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      .btn-primary {
+        padding: 14px 28px;
+        font-size: 0.9rem;
+      }
+
+      .rule-icon {
+        font-size: 2rem;
+      }
+
+      .suspect-avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>
+          VERDICT
+          <span>The AI Detective</span>
+        </h1>
+        <p class="tagline">
+          A murdered billionaire. Four suspects. You have 180 seconds per interrogation to uncover the truth.
+        </p>
+        <a href="./verdict_ai_detective.html" class="btn-primary" id="button-hero">BEGIN INVESTIGATION</a>
+      </div>
+      <div class="scroll-indicator">
+        <a href="#setup-section" class="scroll-link">
+          <span class="scroll-text">SCROLL TO CONTINUE</span>
+          <span class="scroll-arrow">↓</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- SETUP SECTION -->
+    <section class="setup" id="setup-section">
+      <div class="container">
+        <h2 class="section-title">BEFORE YOU BEGIN</h2>
+        <div class="setup-grid">
+          <div class="setup-card">
+            <div class="step-num">1</div>
+            <h3>Install Ollama</h3>
+            <p>Download and install Ollama, the AI engine that powers suspect interrogations.</p>
+            <a href="https://ollama.com" target="_blank" class="btn-primary" style="display: inline-flex; padding: 10px 20px; font-size: 0.9rem; margin-top: 12px;">
+              Download Ollama ↗
+            </a>
+          </div>
+
+          <div class="setup-card">
+            <div class="step-num">2</div>
+            <h3>Pull the Model</h3>
+            <p>Download the llama3.2 AI model. This takes about 2 minutes on a typical connection.</p>
+            <div class="command-block">
+              <code>ollama pull llama3.2</code>
+              <button class="copy-btn" onclick="copyToClipboard('ollama pull llama3.2', this)">COPY</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="step-num">3</div>
+            <h3>Start Ollama</h3>
+            <p>Run this command in Terminal. Keep it running during the entire game.</p>
+            <div class="command-block">
+              <code>ollama serve</code>
+              <button class="copy-btn" onclick="copyToClipboard('ollama serve', this)">COPY</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RULES SECTION -->
+    <section class="rules">
+      <div class="container">
+        <h2 class="section-title">THE INVESTIGATION</h2>
+        <div class="rules-grid">
+          <div class="rule-card">
+            <svg class="rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" style="stroke: rgba(201, 151, 58, 0.7);"></circle>
+              <path d="m21 21-4.35-4.35" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+            </svg>
+            <h3>INTERROGATE</h3>
+            <p>Question four suspects with AI-powered responses. Each interrogation lasts 3 minutes. Find inconsistencies.</p>
+          </div>
+
+          <div class="rule-card">
+            <svg class="rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+              <path d="M12 8v8M8 12h8" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+            </svg>
+            <h3>COLLECT EVIDENCE</h3>
+            <p>Save key statements to your evidence board. Build your case through careful note-taking.</p>
+          </div>
+
+          <div class="rule-card">
+            <svg class="rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" style="stroke: rgba(201, 151, 58, 0.7);"></circle>
+              <path d="M12 8v8M8 12h8M8 8l8 8M16 8l-8 8" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+            </svg>
+            <h3>ANALYZE CONTRADICTIONS</h3>
+            <p>Use AI analysis to cross-examine suspect statements and expose lies. Look for impossible claims.</p>
+          </div>
+
+          <div class="rule-card">
+            <svg class="rule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v18M3 12h18M6 6l12 12M18 6l-12 12M12 6v2M12 16v2M6 12h2M16 12h2" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+              <path d="M8 20h8M6 20h12" style="stroke: rgba(201, 151, 58, 0.7);"></path>
+            </svg>
+            <h3>ISSUE VERDICT</h3>
+            <p>Accuse the murderer. You get one chance. Choose wisely—only evidence will set you free.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CASE SECTION -->
+    <section class="case">
+      <div class="container">
+        <h2 class="section-title">CASE FILE: VA-1015</h2>
+
+        <div class="case-description">
+          <p class="case-file-id">Victor Ashford, Age 67</p>
+          <p class="case-description-text">
+            Found dead in his private study at 10:15 PM. A poisoned wine glass on his desk. Time of death: 9:30 PM to 10:15 PM.
+            <br><br>
+            Four people had motive. Four people had means. Four people had opportunity.
+            <br><br>
+            <em>Only one is a murderer.</em>
+          </p>
+        </div>
+
+        <div class="suspects-grid">
+          <div class="suspect-card">
+            <div class="suspect-avatar">TC</div>
+            <div class="suspect-name">THOMAS CHEN</div>
+            <div class="suspect-title">Personal Butler</div>
+          </div>
+
+          <div class="suspect-card">
+            <div class="suspect-avatar">EA</div>
+            <div class="suspect-name">LADY ELEANOR</div>
+            <div class="suspect-title">Victor's Wife</div>
+          </div>
+
+          <div class="suspect-card">
+            <div class="suspect-avatar">RM</div>
+            <div class="suspect-name">DR. MERCER</div>
+            <div class="suspect-title">Business Partner</div>
+          </div>
+
+          <div class="suspect-card">
+            <div class="suspect-avatar">SH</div>
+            <div class="suspect-name">SOPHIE HARTLEY</div>
+            <div class="suspect-title">Niece, Art Student</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER SECTION -->
+    <section class="footer">
+      <div class="footer-content">
+        <h2>Ready to Investigate?</h2>
+        <p class="footer-text">
+          Enter the interrogation room. Question the suspects. Analyze contradictions. Find the truth.
+          <br>
+          <strong>Your case awaits.</strong>
+        </p>
+        <a href="./verdict_ai_detective.html" class="btn-primary">BEGIN INVESTIGATION</a>
+        <p class="footer-status">
+          Requires Ollama running locally • AI responses powered by Llama 3.2
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function copyToClipboard(text, button) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.textContent;
+        button.textContent = 'COPIED';
+        button.classList.add('copied');
+
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+      });
+    }
+
+    // Smooth scroll for any anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

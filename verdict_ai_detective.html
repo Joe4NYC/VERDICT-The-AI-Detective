@@ -1,0 +1,1782 @@
+<!--
+SETUP INSTRUCTIONS
+1) Install Ollama from https://ollama.com and run: ollama pull llama3.2
+2) Save this file and open it in a modern browser (Chrome/Edge/Safari).
+3) Start Ollama before playing: ollama serve
+4) Open the file. The game starts directly on the SUSPECTS board.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VERDICT: The AI Detective</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0b08;
+      --surface: #161310;
+      --surface-elevated: #1f1b16;
+      --surface-card: #252018;
+      --accent-gold: #c9973a;
+      --accent-red: #8b2a2a;
+      --text-primary: #e8e0d0;
+      --text-muted: #8a8070;
+      --text-faint: #4a4438;
+      --divider: #2a2520;
+      --success-green: #2d5a3d;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --transition: 300ms ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: Inter, sans-serif;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1' /%3E%3C/svg%3E");
+      background-size: 220px 220px;
+      mix-blend-mode: soft-light;
+    }
+
+    #dustCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    #app {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .global-meta {
+      position: fixed;
+      top: 12px;
+      right: 14px;
+      z-index: 20;
+      background: rgba(22, 19, 16, 0.78);
+      border: 1px solid rgba(201, 151, 58, 0.24);
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      box-shadow: var(--shadow);
+      text-transform: uppercase;
+      backdrop-filter: blur(4px);
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      padding: 30px;
+      opacity: 0;
+      transform: translateY(16px);
+      pointer-events: none;
+      transition: opacity var(--transition), transform var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow: auto;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(201, 151, 58, 0.16), transparent 45%),
+        radial-gradient(circle at 84% 20%, rgba(139, 42, 42, 0.12), transparent 42%),
+        linear-gradient(145deg, #0f0c09 0%, #0b0907 55%, #080706 100%);
+    }
+
+    .screen.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .panel {
+      background: rgba(22, 19, 16, 0.92);
+      border: 1px solid var(--divider);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      top: 0;
+      border-top: 1px solid rgba(201, 151, 58, 0.3);
+      pointer-events: none;
+    }
+
+    .title {
+      font-family: "Playfair Display", serif;
+      letter-spacing: 0.03em;
+      line-height: 1.05;
+    }
+
+    .muted { color: var(--text-muted); }
+
+    .btn {
+      border: 1px solid rgba(201, 151, 58, 0.45);
+      background: linear-gradient(180deg, rgba(201, 151, 58, 0.2), rgba(201, 151, 58, 0.08));
+      color: var(--text-primary);
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 1px rgba(201, 151, 58, 0.2), 0 8px 24px rgba(201, 151, 58, 0.2);
+      border-color: rgba(201, 151, 58, 0.85);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, rgba(201, 151, 58, 0.42), rgba(201, 151, 58, 0.18));
+    }
+
+    .btn.ghost {
+      background: rgba(31, 27, 22, 0.7);
+    }
+
+    .btn.danger {
+      border-color: rgba(139, 42, 42, 0.8);
+      background: linear-gradient(180deg, rgba(139, 42, 42, 0.42), rgba(139, 42, 42, 0.2));
+    }
+
+    .badge {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-not-interviewed {
+      color: #c6c0b4;
+      background: rgba(138, 128, 112, 0.15);
+      border-color: rgba(138, 128, 112, 0.35);
+    }
+
+    .status-interviewed {
+      color: #eed6a7;
+      background: rgba(201, 151, 58, 0.16);
+      border-color: rgba(201, 151, 58, 0.48);
+    }
+
+    .status-suspicious {
+      color: #ffc2c2;
+      background: rgba(139, 42, 42, 0.25);
+      border-color: rgba(139, 42, 42, 0.82);
+    }
+
+    .avatar {
+      background: linear-gradient(165deg, #2d271f, #1a1612);
+      border: 1px solid rgba(201, 151, 58, 0.35);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-family: "Playfair Display", serif;
+      color: #e7d3ab;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35), var(--shadow);
+      user-select: none;
+    }
+
+    .fingerprint {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 2px dashed rgba(139, 42, 42, 0.7);
+      transform: rotate(-16deg);
+      opacity: 0.9;
+      pointer-events: none;
+      box-shadow: 0 0 0 6px rgba(139, 42, 42, 0.08), inset 0 0 12px rgba(139, 42, 42, 0.4);
+    }
+
+    .fingerprint::before,
+    .fingerprint::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(139, 42, 42, 0.6);
+    }
+
+    .fingerprint::before {
+      inset: 14px;
+      transform: rotate(12deg);
+    }
+
+    .fingerprint::after {
+      inset: 24px;
+      transform: rotate(-10deg);
+    }
+
+    .briefing-layout {
+      margin: auto;
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 20px;
+      align-items: stretch;
+      min-height: 70vh;
+    }
+
+    .hero {
+      background:
+        radial-gradient(circle at 25% 18%, rgba(201, 151, 58, 0.18), transparent 40%),
+        linear-gradient(155deg, rgba(31, 27, 22, 0.95), rgba(16, 14, 11, 0.94));
+      border: 1px solid rgba(201, 151, 58, 0.25);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      color: #f3e5c9;
+      text-shadow: 0 6px 30px rgba(201, 151, 58, 0.18);
+    }
+
+    .hero p {
+      margin-top: 10px;
+      color: #cfc4b1;
+      max-width: 46ch;
+      line-height: 1.55;
+    }
+
+    .victim-silhouette {
+      width: 100%;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(201, 151, 58, 0.2), transparent 52%),
+        linear-gradient(180deg, rgba(37, 32, 24, 0.95), rgba(21, 17, 13, 0.95));
+      border: 1px solid rgba(201, 151, 58, 0.26);
+      min-height: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .victim-silhouette::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      width: 155px;
+      height: 198px;
+      transform: translate(-50%, -50%);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(0,0,0,0.6) 0 34px, transparent 35px),
+        radial-gradient(120px 88px at 50% 72%, rgba(0,0,0,0.75), rgba(0,0,0,0.92));
+      filter: blur(1px);
+    }
+
+    .victim-silhouette::after {
+      content: "VICTOR ASHFORD";
+      position: absolute;
+      bottom: 14px;
+      left: 16px;
+      letter-spacing: 0.11em;
+      font-size: 12px;
+      color: rgba(232, 224, 208, 0.62);
+    }
+
+    .case-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .case-item {
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(37, 32, 24, 0.52);
+    }
+
+    .case-item span {
+      display: block;
+      color: var(--text-faint);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .screen-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .screen-header h2 {
+      font-family: "Playfair Display", serif;
+      font-size: clamp(1.7rem, 2.6vw, 2.4rem);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .count-badge {
+      border: 1px solid rgba(201, 151, 58, 0.45);
+      background: rgba(201, 151, 58, 0.12);
+      color: #edd7aa;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .suspect-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .suspect-card {
+      position: relative;
+      background: linear-gradient(170deg, rgba(37, 32, 24, 0.95), rgba(25, 22, 17, 0.95));
+      border: 1px solid var(--divider);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+      overflow: hidden;
+    }
+
+    .suspect-card:hover {
+      border-color: rgba(201, 151, 58, 0.78);
+      box-shadow: 0 0 0 1px rgba(201, 151, 58, 0.2), 0 14px 30px rgba(0, 0, 0, 0.58);
+      transform: translateY(-2px);
+    }
+
+    .suspect-card .avatar {
+      width: 74px;
+      height: 74px;
+      font-size: 1.4rem;
+    }
+
+    .suspect-meta {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .suspect-name {
+      font-family: "Playfair Display", serif;
+      font-size: 1.28rem;
+      line-height: 1.2;
+    }
+
+    .suspect-title {
+      color: var(--text-muted);
+      font-size: 0.94rem;
+    }
+
+    .board-footer {
+      margin-top: auto;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .interrogation-layout {
+      width: 100%;
+      height: calc(100vh - 72px);
+      min-height: 600px;
+      display: grid;
+      grid-template-columns: 35% 65%;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .suspect-panel {
+      background: rgba(22, 19, 16, 0.95);
+      border: 1px solid var(--divider);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: auto;
+    }
+
+    .suspect-panel .avatar {
+      width: 100%;
+      max-width: 230px;
+      aspect-ratio: 1 / 1;
+      font-size: 3rem;
+      margin: 0 auto;
+    }
+
+    .separator {
+      border-bottom: 1px solid rgba(201, 151, 58, 0.3);
+      margin: 2px 0;
+    }
+
+    .chat-shell {
+      border: 1px solid var(--divider);
+      border-radius: 16px;
+      background: rgba(22, 19, 16, 0.95);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .chat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--divider);
+      padding: 14px 16px;
+    }
+
+    .timer {
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      font-size: 0.95rem;
+      color: #efd9aa;
+      border: 1px solid rgba(201, 151, 58, 0.45);
+      border-radius: 999px;
+      padding: 6px 10px;
+      min-width: 92px;
+      text-align: center;
+    }
+
+    .timer.warn {
+      color: #ffcc85;
+      border-color: rgba(201, 151, 58, 0.75);
+      box-shadow: 0 0 14px rgba(201, 151, 58, 0.2);
+    }
+
+    .timer.danger {
+      color: #ffb6b6;
+      border-color: rgba(139, 42, 42, 0.9);
+      box-shadow: 0 0 14px rgba(139, 42, 42, 0.35);
+    }
+
+    .chat-history {
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .message {
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 11px 12px;
+      max-width: min(680px, 92%);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      position: relative;
+    }
+
+    .message.player {
+      margin-left: auto;
+      background: rgba(201, 151, 58, 0.14);
+      border-color: rgba(201, 151, 58, 0.32);
+    }
+
+    .message.suspect,
+    .message.judge {
+      background: rgba(37, 32, 24, 0.78);
+    }
+
+    .message .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-faint);
+    }
+
+    .message-content {
+      font-family: "Playfair Display", serif;
+      font-style: italic;
+      color: #efe6d7;
+    }
+
+    .message-controls {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .tiny {
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
+
+    .typing {
+      width: fit-content;
+      border: 1px solid var(--divider);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(37, 32, 24, 0.75);
+      color: var(--text-muted);
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .typing.active { display: inline-flex; }
+
+    .typing-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #d7bf8a;
+      animation: pulseDot 1s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.12s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.24s; }
+
+    @keyframes pulseDot {
+      0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+      40% { opacity: 0.95; transform: translateY(-2px); }
+    }
+
+    .chat-input {
+      border-top: 1px solid var(--divider);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .chat-input textarea,
+    .reason-box {
+      width: 100%;
+      background: rgba(16, 14, 11, 0.94);
+      border: 1px solid var(--divider);
+      color: var(--text-primary);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: Inter, sans-serif;
+      font-size: 0.95rem;
+      resize: none;
+      outline: none;
+    }
+
+    .chat-input textarea:focus,
+    .reason-box:focus {
+      border-color: rgba(201, 151, 58, 0.68);
+      box-shadow: 0 0 0 3px rgba(201, 151, 58, 0.14);
+    }
+
+    .evidence-board {
+      background:
+        radial-gradient(circle at 15% 20%, rgba(201, 151, 58, 0.08), transparent 38%),
+        radial-gradient(circle at 85% 85%, rgba(201, 151, 58, 0.06), transparent 42%),
+        linear-gradient(180deg, rgba(39, 30, 18, 0.94), rgba(22, 16, 11, 0.97));
+      border: 1px solid #3b2f20;
+      border-radius: 16px;
+      box-shadow: inset 0 0 0 1px rgba(201, 151, 58, 0.1), var(--shadow);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      min-height: 300px;
+    }
+
+    .evidence-card {
+      background: #f0e6d3;
+      color: #2b2418;
+      border-radius: 8px;
+      border: 1px solid #cab089;
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform: rotate(calc((var(--tilt, 0)) * 1deg));
+      transition: transform 180ms ease;
+      min-height: 160px;
+    }
+
+    .evidence-card:hover {
+      transform: rotate(0deg) translateY(-2px);
+    }
+
+    .evidence-tag {
+      align-self: flex-start;
+      background: #2f271b;
+      color: #e9d9b8;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .evidence-quote {
+      font-family: "Playfair Display", serif;
+      font-style: italic;
+      line-height: 1.45;
+      color: #201b13;
+    }
+
+    .evidence-time {
+      color: #655741;
+      font-size: 11px;
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      display: grid;
+      place-items: center;
+      color: #bcad95;
+      border: 1px dashed rgba(201, 151, 58, 0.3);
+      border-radius: 12px;
+      min-height: 240px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .analysis-box {
+      margin-top: 12px;
+      min-height: 120px;
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(18, 15, 12, 0.9);
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .verdict-option {
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(31, 27, 22, 0.88);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .verdict-option input[type="radio"] {
+      accent-color: var(--accent-gold);
+      margin-top: 3px;
+    }
+
+    .judge-output {
+      min-height: 200px;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid var(--divider);
+      border-radius: 12px;
+      background: rgba(17, 14, 11, 0.94);
+      padding: 14px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    .flying-evidence {
+      position: fixed;
+      z-index: 120;
+      width: 240px;
+      pointer-events: none;
+      border-radius: 8px;
+      border: 1px solid #cab089;
+      background: #f0e6d3;
+      color: #2b2418;
+      padding: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.38);
+      animation: flyEvidence 700ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      transform-origin: center;
+    }
+
+    @keyframes flyEvidence {
+      0% {
+        opacity: 0.95;
+        transform: translate(var(--sx), var(--sy)) scale(1);
+      }
+      60% {
+        opacity: 0.9;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(var(--tx), var(--ty)) scale(0.2);
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .briefing-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .interrogation-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 0;
+      }
+
+      .chat-shell {
+        min-height: 460px;
+      }
+
+      .evidence-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .screen {
+        padding: 18px;
+      }
+
+      .suspect-grid,
+      .verdict-grid,
+      .case-grid,
+      .evidence-board {
+        grid-template-columns: 1fr;
+      }
+
+      .global-meta {
+        top: 8px;
+        right: 8px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="dustCanvas"></canvas>
+  <div class="global-meta" id="globalMeta">CASE FILE #VA-1015 • --</div>
+
+  <div id="app">
+    <section class="screen" id="screen-briefing">
+      <div class="briefing-layout">
+        <div class="hero">
+          <div>
+            <p class="muted" style="letter-spacing:0.15em;text-transform:uppercase;font-size:12px;">Murder Investigation Dossier</p>
+            <h1 class="title">VERDICT:<br>The AI Detective</h1>
+            <p>
+              Victor Ashford, 62, wealthy art collector, was found dead in his private study at 10:15 PM.
+              Poison was discovered in a wine glass on his desk. Time of death: 9:30 PM to 10:15 PM.
+              Four suspects. One liar too far.
+            </p>
+          </div>
+          <button class="btn primary" id="beginBtn"><i data-lucide="lamp-desk"></i> BEGIN INVESTIGATION</button>
+        </div>
+
+        <div class="panel">
+          <div class="victim-silhouette" aria-hidden="true"></div>
+          <div class="case-grid">
+            <div class="case-item"><span>Victim</span>Victor Ashford, 62</div>
+            <div class="case-item"><span>Scene</span>Private Mansion Study</div>
+            <div class="case-item"><span>Cause</span>Poisoned Wine Glass</div>
+            <div class="case-item"><span>Found</span>10:15 PM</div>
+            <div class="case-item" style="grid-column:1 / -1;"><span>Time of Death</span>Between 9:30 PM and 10:15 PM</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen active" id="screen-board">
+      <div class="screen-header">
+        <h2>SUSPECTS</h2>
+        <div class="header-actions">
+          <div class="count-badge" id="evidenceCount">EVIDENCE: 0</div>
+          <button class="btn ghost" id="openEvidenceBtn"><i data-lucide="pin"></i> EVIDENCE BOARD</button>
+        </div>
+      </div>
+      <div class="suspect-grid" id="suspectGrid"></div>
+      <div class="board-footer">
+        <button class="btn danger" id="issueVerdictBtn" disabled><i data-lucide="gavel"></i> ISSUE VERDICT</button>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-interrogation">
+      <div class="interrogation-layout">
+        <aside class="suspect-panel" id="interrogationLeft"></aside>
+        <div class="chat-shell">
+          <div class="chat-top">
+            <div>
+              <h3 class="title" id="chatTitle" style="font-size:1.5rem;">Interrogation Room</h3>
+              <p class="muted" style="font-size:0.9rem;">Carefully cross-examine. Contradictions reveal intent.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button class="btn ghost tiny" id="interrogationEvidenceBtn"><i data-lucide="pin"></i> Board</button>
+              <div class="timer" id="timerDisplay">03:00</div>
+            </div>
+          </div>
+          <div class="chat-history" id="chatHistory"></div>
+          <div style="padding:0 16px 10px;">
+            <div class="typing" id="typingIndicator">
+              <span style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">Typing</span>
+              <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+            </div>
+          </div>
+          <div class="chat-input">
+            <textarea id="questionInput" rows="2" placeholder="Ask your question..."></textarea>
+            <button class="btn primary" id="askBtn"><i data-lucide="send"></i> ASK</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-evidence">
+      <div class="screen-header">
+        <h2>EVIDENCE BOARD</h2>
+        <div class="header-actions">
+          <button class="btn ghost" id="backFromEvidenceBtn"><i data-lucide="arrow-left"></i> BACK TO SUSPECTS</button>
+        </div>
+      </div>
+      <div class="evidence-board" id="evidenceBoard"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn primary" id="analyzeBtn"><i data-lucide="scan-search"></i> ANALYZE CONTRADICTIONS</button>
+      </div>
+      <div class="analysis-box" id="analysisBox">Awaiting analysis...</div>
+    </section>
+
+    <section class="screen" id="screen-verdict">
+      <div class="screen-header">
+        <h2>VERDICT ROOM</h2>
+        <div class="header-actions">
+          <button class="btn ghost" id="backFromVerdictBtn"><i data-lucide="arrow-left"></i> BACK TO SUSPECTS</button>
+        </div>
+      </div>
+      <div class="panel" style="display:flex;flex-direction:column;gap:12px;">
+        <p class="muted">Select the murderer and present your reasoning.</p>
+        <div class="verdict-grid" id="verdictOptions"></div>
+        <label class="muted" for="reasonBox">State your case (optional)</label>
+        <textarea class="reason-box" id="reasonBox" rows="5" placeholder="Explain your deductions..."></textarea>
+        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+          <button class="btn danger" id="submitVerdictBtn"><i data-lucide="scale"></i> SUBMIT VERDICT</button>
+          <button class="btn ghost" id="playAgainBtn" style="display:none;"><i data-lucide="rotate-ccw"></i> PLAY AGAIN</button>
+        </div>
+      </div>
+      <div class="judge-output" id="judgeOutput">Judge Harrison awaits your conclusion.</div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module">
+    const CASE_FILE = "VA-1015";
+
+    const suspects = [
+      {
+        id: "thomas",
+        initials: "TC",
+        name: "THOMAS CHEN",
+        title: "Personal Butler",
+        relationship: "Butler for 15 years",
+        status: "not_interviewed",
+        prompt: `You are Thomas Chen, Victor Ashford's personal butler of 15 years.
+Personality: overly formal, nervous, over-explain minor details.
+Facts:
+- Secret: You were outside the mansion between 9:45 PM and 10:10 PM meeting someone.
+- Lie: You deny any conflict with Victor over unpaid wages.
+- You know Lady Ashford has been secretly selling Victor's artworks.
+Rules:
+- Stay fully in character.
+- Do not confess to murder (you are not the murderer).
+- Reveal secret only under pressure or careful questioning.
+- If asked directly about wages conflict, deny or deflect.
+- Keep answers concise: 2-5 sentences.`
+      },
+      {
+        id: "eleanor",
+        initials: "EA",
+        name: "LADY ELEANOR ASHFORD",
+        title: "Victor's Wife",
+        relationship: "Married for 8 years",
+        status: "not_interviewed",
+        prompt: `You are Lady Eleanor Ashford, Victor's wife.
+Personality: cold, aristocratic, deflect with counter-questions.
+Facts:
+- Secret: You are having an affair and were in the garden at 9:40 PM.
+- Lie: You deny knowing about Victor's updated will that cuts your inheritance by 50%.
+- You know Dr. Mercer visited Victor privately two days ago about debts.
+Rules:
+- Stay in character with elegant, controlled language.
+- Do not confess to murder (you are not the murderer).
+- Deflect pressure with questions.
+- Keep answers concise: 2-5 sentences.`
+      },
+      {
+        id: "mercer",
+        initials: "RM",
+        name: "DR. RAYMOND MERCER",
+        title: "Business Partner",
+        relationship: "Business partner for 20 years",
+        status: "not_interviewed",
+        prompt: `You are Dr. Raymond Mercer, Victor's business partner.
+Personality: charming, overly helpful, changes subject when cornered.
+Facts:
+- Secret: Victor was about to expose you for embezzling £200,000.
+- Lie: You deny being in the mansion after 8:00 PM (you were there at 9:50 PM).
+- You know Thomas Chen has a key to the private wine cellar.
+You are the actual murderer, but do NOT admit this unless impossible to avoid.
+Rules:
+- Stay plausible and evasive.
+- Keep answers concise: 2-5 sentences.`
+      },
+      {
+        id: "sophie",
+        initials: "SH",
+        name: "SOPHIE HARTLEY",
+        title: "Niece, Art Student",
+        relationship: "Victor's niece",
+        status: "not_interviewed",
+        prompt: `You are Sophie Hartley, Victor's 28-year-old niece.
+Personality: casual, uses humour to deflect, defensive when pressed.
+Facts:
+- Secret: You were the last person to see Victor alive at 9:55 PM, and you argued.
+- Lie: You deny knowing contents of Victor's new will (you inherit everything).
+- You know Lady Ashford had access to exotic plants from the greenhouse.
+Rules:
+- Stay in character with occasional witty lines.
+- Do not confess to murder (you are not the murderer).
+- Keep answers concise: 2-5 sentences.`
+      }
+    ];
+your response concise — maximum 400 words. Always complete your sentences and end with a definitive conclusion
+    const judgePrompt = `You are Judge Harrison, a stern British magistrate overseeing this murder trial.
+For verdicts: speak dramatically, reference specific evidence mentioned, reveal the truth after the verdict is delivered. Keep under 200 words.
+For contradiction analysis: list specific contradictions found between suspect statements as numbered points. Be analytical and precise. Under 150 words.`;
+
+    const appState = {
+      currentScreen: "board",
+      currentSuspectId: null,
+      evidence: [],
+      suspectConversations: {
+        thomas: [],
+        eleanor: [],
+        mercer: [],
+        sophie: []
+      },
+      interviewSet: new Set(),
+      suspiciousSet: new Set(),
+      sessionSeconds: 180,
+      suspectTimers: { thomas: 180, eleanor: 180, mercer: 180, sophie: 180 },
+      timerHandle: null,
+      sessionEnded: false,
+      isStreaming: false,
+      askCooldownMs: 2000,
+      nextAskAllowedAt: 0,
+      askCooldownHandle: null,
+      judged: false
+    };
+
+    const el = {
+      screens: {
+        briefing: document.getElementById("screen-briefing"),
+        board: document.getElementById("screen-board"),
+        interrogation: document.getElementById("screen-interrogation"),
+        evidence: document.getElementById("screen-evidence"),
+        verdict: document.getElementById("screen-verdict")
+      },
+      globalMeta: document.getElementById("globalMeta"),
+      beginBtn: document.getElementById("beginBtn"),
+      suspectGrid: document.getElementById("suspectGrid"),
+      evidenceCount: document.getElementById("evidenceCount"),
+      openEvidenceBtn: document.getElementById("openEvidenceBtn"),
+      issueVerdictBtn: document.getElementById("issueVerdictBtn"),
+      interrogationLeft: document.getElementById("interrogationLeft"),
+      chatTitle: document.getElementById("chatTitle"),
+      timerDisplay: document.getElementById("timerDisplay"),
+      chatHistory: document.getElementById("chatHistory"),
+      questionInput: document.getElementById("questionInput"),
+      askBtn: document.getElementById("askBtn"),
+      typingIndicator: document.getElementById("typingIndicator"),
+      interrogationEvidenceBtn: document.getElementById("interrogationEvidenceBtn"),
+      evidenceBoard: document.getElementById("evidenceBoard"),
+      backFromEvidenceBtn: document.getElementById("backFromEvidenceBtn"),
+      analyzeBtn: document.getElementById("analyzeBtn"),
+      analysisBox: document.getElementById("analysisBox"),
+      verdictOptions: document.getElementById("verdictOptions"),
+      reasonBox: document.getElementById("reasonBox"),
+      submitVerdictBtn: document.getElementById("submitVerdictBtn"),
+      backFromVerdictBtn: document.getElementById("backFromVerdictBtn"),
+      judgeOutput: document.getElementById("judgeOutput"),
+      playAgainBtn: document.getElementById("playAgainBtn")
+    };
+
+    async function callAI(systemPrompt, userMessage) {
+      const response = await fetch('http://localhost:11434/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3.2',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          stream: false,
+          options: { num_predict: 600 }
+        })
+      });
+      const data = await response.json();
+      return data.message.content;
+    }
+
+    function friendlyAIError(error) {
+      const msg = String(error?.message || error || "Unknown error");
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("ECONNREFUSED")) {
+        return "Please start Ollama: run 'ollama serve' in Terminal";
+      }
+      return msg;
+    }
+
+    function nowStamp() {
+      return new Date().toLocaleString("en-GB", {
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function updateMetaClock() {
+      el.globalMeta.textContent = `CASE FILE #${CASE_FILE} • ${nowStamp()}`;
+    }
+
+    function switchScreen(name) {
+      Object.entries(el.screens).forEach(([key, node]) => {
+        node.classList.toggle("active", key === name);
+      });
+      appState.currentScreen = name;
+      updateMetaClock();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function statusInfo(suspect) {
+      const suspicious = appState.suspiciousSet.has(suspect.id);
+      if (suspicious) {
+        return { label: "SUSPICIOUS", cls: "status-suspicious" };
+      }
+      if (appState.interviewSet.has(suspect.id)) {
+        return { label: "INTERVIEWED", cls: "status-interviewed" };
+      }
+      return { label: "NOT INTERVIEWED", cls: "status-not-interviewed" };
+    }
+
+    function getSuspectById(id) {
+      return suspects.find((s) => s.id === id);
+    }
+
+    function renderSuspectBoard() {
+      el.suspectGrid.innerHTML = "";
+      suspects.forEach((suspect) => {
+        const info = statusInfo(suspect);
+        const card = document.createElement("article");
+        card.className = "suspect-card";
+        card.dataset.id = suspect.id;
+
+        const isSuspicious = appState.suspiciousSet.has(suspect.id);
+
+        card.innerHTML = `
+          <div class="avatar">${suspect.initials}</div>
+          <div class="suspect-meta">
+            <div class="suspect-name">${suspect.name}</div>
+            <div class="suspect-title">${suspect.title}</div>
+            <div><span class="badge ${info.cls}">${info.label}</span></div>
+          </div>
+          ${isSuspicious ? '<div class="fingerprint" aria-hidden="true"></div>' : ''}
+        `;
+
+        card.addEventListener("click", () => openInterrogation(suspect.id));
+        card.addEventListener("contextmenu", (evt) => {
+          evt.preventDefault();
+          toggleSuspicious(suspect.id);
+        });
+        bindLongPress(card, () => toggleSuspicious(suspect.id));
+
+        el.suspectGrid.appendChild(card);
+      });
+
+      el.evidenceCount.textContent = `EVIDENCE: ${appState.evidence.length}`;
+      el.issueVerdictBtn.disabled = appState.interviewSet.size < 3;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function bindLongPress(node, callback) {
+      let timer = null;
+      const start = () => {
+        timer = setTimeout(() => callback(), 650);
+      };
+      const clear = () => {
+        clearTimeout(timer);
+        timer = null;
+      };
+      node.addEventListener("touchstart", start, { passive: true });
+      node.addEventListener("touchend", clear);
+      node.addEventListener("touchcancel", clear);
+      node.addEventListener("touchmove", clear);
+    }
+
+    function toggleSuspicious(id) {
+      if (appState.suspiciousSet.has(id)) {
+        appState.suspiciousSet.delete(id);
+      } else {
+        appState.suspiciousSet.add(id);
+      }
+      renderSuspectBoard();
+      if (appState.currentScreen === "interrogation" && appState.currentSuspectId === id) {
+        renderInterrogationLeft();
+      }
+    }
+
+    function renderInterrogationLeft() {
+      const suspect = getSuspectById(appState.currentSuspectId);
+      if (!suspect) return;
+      const info = statusInfo(suspect);
+      const fp = appState.suspiciousSet.has(suspect.id) ? '<div class="fingerprint" aria-hidden="true"></div>' : "";
+
+      el.interrogationLeft.innerHTML = `
+        <div style="position:relative;">
+          <div class="avatar">${suspect.initials}</div>
+          ${fp}
+        </div>
+        <div>
+          <h3 class="title" style="font-size:1.6rem;line-height:1.2;">${suspect.name}</h3>
+          <p class="muted" style="margin-top:4px;">${suspect.title}</p>
+        </div>
+        <div class="separator"></div>
+        <div>
+          <p style="font-size:0.9rem;color:var(--text-muted);">Relationship</p>
+          <p>${suspect.relationship}</p>
+        </div>
+        <div>
+          <span class="badge ${info.cls}">${info.label}</span>
+        </div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;">
+          <button class="btn ghost" id="backToSuspectsBtn"><i data-lucide="arrow-left"></i> BACK TO SUSPECTS</button>
+          <div id="sessionStatus" style="margin-top:12px;font-size:0.85rem;color:var(--text-muted);text-align:center;"></div>
+          <button class="btn ghost" id="markSuspiciousBtn"><i data-lucide="fingerprint"></i> TOGGLE SUSPICIOUS</button>
+        </div>
+      `;
+
+      el.interrogationLeft.querySelector("#backToSuspectsBtn").addEventListener("click", () => {
+        stopTimer();
+        // Save timer state before leaving
+        appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        switchScreen("board");
+        renderSuspectBoard();
+      });
+
+      el.interrogationLeft.querySelector("#markSuspiciousBtn").addEventListener("click", () => {
+        toggleSuspicious(suspect.id);
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderChat() {
+      const suspectId = appState.currentSuspectId;
+      const convo = appState.suspectConversations[suspectId] || [];
+      el.chatHistory.innerHTML = "";
+      convo.forEach((entry, idx) => {
+        const msg = makeMessageNode(entry, idx, suspectId);
+        el.chatHistory.appendChild(msg);
+      });
+      el.chatHistory.scrollTop = el.chatHistory.scrollHeight;
+    }
+
+    function makeMessageNode(entry, index, suspectId) {
+      const wrapper = document.createElement("article");
+      wrapper.className = `message ${entry.role === "user" ? "player" : "suspect"}`;
+
+      const roleName = entry.role === "user" ? "Detective" : "Suspect";
+      wrapper.innerHTML = `
+        <div class="meta"><span>${roleName}</span><span>${entry.time}</span></div>
+        <div class="message-content"></div>
+      `;
+
+      const content = wrapper.querySelector(".message-content");
+      content.textContent = entry.text;
+
+      if (entry.role === "model" && !entry.system && entry.text.trim().length > 0) {
+        const controls = document.createElement("div");
+        controls.className = "message-controls";
+        const addBtn = document.createElement("button");
+        addBtn.className = "btn ghost tiny";
+        addBtn.innerHTML = "📌 ADD TO EVIDENCE";
+        addBtn.addEventListener("click", (ev) => {
+          addEvidenceFromMessage(suspectId, entry.text, ev.currentTarget);
+        });
+        controls.appendChild(addBtn);
+        wrapper.appendChild(controls);
+      }
+
+      return wrapper;
+    }
+
+    function openInterrogation(suspectId) {
+      appState.currentSuspectId = suspectId;
+      // Restore timer from persistent storage; check if session already expired
+      appState.sessionSeconds = appState.suspectTimers[suspectId] || 180;
+      appState.sessionEnded = appState.sessionSeconds <= 0;
+      const suspect = getSuspectById(suspectId);
+      el.chatTitle.textContent = `Interrogation: ${suspect.name}`;
+      renderInterrogationLeft();
+      renderChat();
+      switchScreen("interrogation");
+      startTimer();
+      setAskEnabled(true);
+    }
+
+    function startTimer() {
+      stopTimer();
+      tickTimer();
+      appState.timerHandle = setInterval(() => {
+        appState.sessionSeconds -= 1;
+        // Save remaining time to persistent storage
+        appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        if (appState.sessionSeconds <= 0) {
+          appState.sessionSeconds = 0;
+          appState.suspectTimers[appState.currentSuspectId] = 0;
+          tickTimer();
+          endSessionByTimeout();
+          return;
+        }
+        tickTimer();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (appState.timerHandle) {
+        clearInterval(appState.timerHandle);
+        appState.timerHandle = null;
+      }
+    }
+
+    function tickTimer() {
+      const s = appState.sessionSeconds;
+      const m = String(Math.floor(s / 60)).padStart(2, "0");
+      const sec = String(s % 60).padStart(2, "0");
+      el.timerDisplay.textContent = `${m}:${sec}`;
+      el.timerDisplay.classList.toggle("warn", s <= 60 && s > 30);
+      el.timerDisplay.classList.toggle("danger", s <= 30);
+    }
+
+    function endSessionByTimeout() {
+      stopTimer();
+      appState.sessionEnded = true;
+      setAskEnabled(false);
+      pushSystemMessage(appState.currentSuspectId, "⏱️ Session expired. The suspect asks for a recess.");
+      renderChat();
+    }
+
+    function pushSystemMessage(suspectId, text) {
+      appState.suspectConversations[suspectId].push({
+        role: "model",
+        text,
+        time: nowStamp(),
+        system: true
+      });
+    }
+
+    function setAskEnabled(enabled) {
+      const can = enabled
+        && !appState.isStreaming
+        && !appState.sessionEnded
+        && appState.sessionSeconds > 0
+        && Date.now() >= appState.nextAskAllowedAt;
+      el.questionInput.disabled = !can;
+      el.askBtn.disabled = !can;
+    }
+
+    function startAskCooldown() {
+      clearTimeout(appState.askCooldownHandle);
+      appState.nextAskAllowedAt = Date.now() + appState.askCooldownMs;
+      setAskEnabled(false);
+      appState.askCooldownHandle = setTimeout(() => {
+        setAskEnabled(true);
+      }, appState.askCooldownMs);
+    }
+
+    function showTyping(show) {
+      el.typingIndicator.classList.toggle("active", show);
+    }
+
+    function markInterviewed(suspectId) {
+      if (!appState.interviewSet.has(suspectId)) {
+        appState.interviewSet.add(suspectId);
+        renderSuspectBoard();
+      }
+    }
+
+    async function handleAsk() {
+      if (appState.sessionEnded || appState.isStreaming) return;
+      const suspectId = appState.currentSuspectId;
+      const suspect = getSuspectById(suspectId);
+      const question = el.questionInput.value.trim();
+      if (!question) return;
+      if (Date.now() < appState.nextAskAllowedAt) {
+        const remainingMs = appState.nextAskAllowedAt - Date.now();
+        const remainingSec = Math.max(1, Math.ceil(remainingMs / 1000));
+        pushSystemMessage(suspectId, `Please wait ${remainingSec}s before asking again.`);
+        renderChat();
+        return;
+      }
+      el.questionInput.value = "";
+      appState.suspectConversations[suspectId].push({
+        role: "user",
+        text: question,
+        time: nowStamp()
+      });
+      renderChat();
+
+      const pending = {
+        role: "model",
+        text: "",
+        time: nowStamp(),
+        system: false
+      };
+      appState.suspectConversations[suspectId].push(pending);
+      renderChat();
+
+      appState.isStreaming = true;
+      setAskEnabled(false);
+      showTyping(true);
+
+      try {
+        const transcript = appState.suspectConversations[suspectId]
+          .filter((m) => !m.system)
+          .slice(0, -1)
+          .map((m) => `${m.role === "user" ? "Detective" : "Suspect"}: ${m.text}`)
+          .join("\n");
+
+        const userMessage = `Conversation so far:\n${transcript}\n\nRespond as ${suspect.name}.`;
+        const reply = await callAI(suspect.prompt, userMessage);
+        patchLastAssistantMessage(suspectId, reply);
+
+        markInterviewed(suspectId);
+      } catch (error) {
+        patchLastAssistantMessage(suspectId, `API Error: ${friendlyAIError(error)}`);
+      } finally {
+        appState.isStreaming = false;
+        showTyping(false);
+        startAskCooldown();
+      }
+    }
+
+    function patchLastAssistantMessage(suspectId, text) {
+      const convo = appState.suspectConversations[suspectId];
+      const idx = convo.length - 1;
+      if (idx >= 0) {
+        convo[idx].text = text;
+        renderChat();
+      }
+    }
+
+    function addEvidenceFromMessage(suspectId, quote, sourceBtn) {
+      if (!quote.trim()) return;
+      const suspect = getSuspectById(suspectId);
+      const item = {
+        id: crypto.randomUUID(),
+        suspectId,
+        suspectName: suspect.name,
+        quote: quote.trim(),
+        time: nowStamp()
+      };
+      appState.evidence.push(item);
+      el.evidenceCount.textContent = `EVIDENCE: ${appState.evidence.length}`;
+      renderEvidenceBoard();
+      renderSuspectBoard();
+      animateEvidenceFly(sourceBtn);
+    }
+
+    function animateEvidenceFly(sourceBtn) {
+      const fromRect = sourceBtn.getBoundingClientRect();
+      const toRect = el.openEvidenceBtn.getBoundingClientRect();
+      const ghost = document.createElement("div");
+      ghost.className = "flying-evidence";
+      ghost.textContent = "Evidence Added";
+
+      const sx = fromRect.left;
+      const sy = fromRect.top;
+      const tx = toRect.left - sx;
+      const ty = toRect.top - sy;
+
+      ghost.style.setProperty("--sx", `${sx}px`);
+      ghost.style.setProperty("--sy", `${sy}px`);
+      ghost.style.setProperty("--tx", `${tx}px`);
+      ghost.style.setProperty("--ty", `${ty}px`);
+
+      document.body.appendChild(ghost);
+      setTimeout(() => ghost.remove(), 760);
+    }
+
+    function renderEvidenceBoard() {
+      el.evidenceBoard.innerHTML = "";
+      if (!appState.evidence.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No evidence collected yet. Start interrogating suspects.";
+        el.evidenceBoard.appendChild(empty);
+        return;
+      }
+
+      appState.evidence.forEach((ev) => {
+        const card = document.createElement("article");
+        card.className = "evidence-card";
+        card.style.setProperty("--tilt", String((Math.random() * 6 - 3).toFixed(2)));
+        card.innerHTML = `
+          <div class="evidence-tag">${ev.suspectName}</div>
+          <div class="evidence-quote">“${escapeHtml(ev.quote)}”</div>
+          <div class="evidence-time">${ev.time}</div>
+        `;
+        el.evidenceBoard.appendChild(card);
+      });
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    async function analyzeContradictions() {
+      if (!appState.evidence.length) {
+        el.analysisBox.textContent = "No evidence available for analysis.";
+        return;
+      }
+
+      el.analyzeBtn.disabled = true;
+      el.analysisBox.textContent = "Analyzing contradictions...";
+
+      const evidenceText = appState.evidence
+        .map((e, i) => `${i + 1}. [${e.suspectName} at ${e.time}] ${e.quote}`)
+        .join("\n");
+
+      const userMessage = `Analyze contradictions in these suspect statements.\n${evidenceText}`;
+
+      try {
+        const reply = await callAI(judgePrompt, userMessage);
+        el.analysisBox.textContent = reply;
+      } catch (error) {
+        el.analysisBox.textContent = `API Error: ${friendlyAIError(error)}`;
+      } finally {
+        el.analyzeBtn.disabled = false;
+      }
+    }
+
+    function renderVerdictOptions() {
+      el.verdictOptions.innerHTML = "";
+      suspects.forEach((suspect) => {
+        const id = `verdict-${suspect.id}`;
+        const card = document.createElement("label");
+        card.className = "verdict-option";
+        card.setAttribute("for", id);
+        card.innerHTML = `
+          <input id="${id}" type="radio" name="verdictSuspect" value="${suspect.id}" />
+          <div>
+            <div class="suspect-name" style="font-size:1.07rem;">${suspect.name}</div>
+            <div class="suspect-title">${suspect.title}</div>
+          </div>
+        `;
+        el.verdictOptions.appendChild(card);
+      });
+    }
+
+    function selectedVerdict() {
+      const checked = document.querySelector('input[name="verdictSuspect"]:checked');
+      return checked ? checked.value : "";
+    }
+
+    function heartbeat() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const playThump = (time, gainLevel) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(58, time);
+          osc.frequency.exponentialRampToValueAtTime(42, time + 0.13);
+          gain.gain.setValueAtTime(0.0001, time);
+          gain.gain.exponentialRampToValueAtTime(gainLevel, time + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.17);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(time);
+          osc.stop(time + 0.19);
+        };
+        const t = ctx.currentTime + 0.02;
+        playThump(t, 0.18);
+        playThump(t + 0.28, 0.14);
+        setTimeout(() => ctx.close(), 1200);
+      } catch {
+        // Audio is optional polish.
+      }
+    }
+
+    async function submitVerdict() {
+      const suspectId = selectedVerdict();
+      if (!suspectId) {
+        el.judgeOutput.textContent = "Select a suspect before submitting the verdict.";
+        return;
+      }
+
+      heartbeat();
+      el.submitVerdictBtn.disabled = true;
+      el.judgeOutput.textContent = "Judge Harrison is delivering the verdict...";
+
+      const chosen = getSuspectById(suspectId);
+      const reasoning = el.reasonBox.value.trim();
+      const evidenceSummary = appState.evidence
+        .map((e, i) => `${i + 1}. [${e.suspectName}] ${e.quote}`)
+        .join("\n");
+
+      const truth = "Actual murderer is Dr. Raymond Mercer. He poisoned Victor's wine glass during his secret 9:50 PM visit to prevent exposure for embezzling £200,000.";
+
+      const userMessage = `Player selected suspect: ${chosen.name}.
+Player reasoning: ${reasoning || "(none provided)"}
+Collected evidence:\n${evidenceSummary || "(none)"}
+${truth}
+If the player is correct, congratulate and reveal full true story.
+If wrong, declare insufficient evidence, explain what was missed, and encourage retry.`;
+
+      try {
+        const reply = await callAI(judgePrompt, userMessage);
+        el.judgeOutput.textContent = reply;
+
+        appState.judged = true;
+        el.playAgainBtn.style.display = "inline-flex";
+      } catch (error) {
+        el.judgeOutput.textContent = `API Error: ${friendlyAIError(error)}`;
+      } finally {
+        el.submitVerdictBtn.disabled = false;
+      }
+    }
+
+    function resetGame() {
+      appState.currentScreen = "board";
+      appState.currentSuspectId = null;
+      appState.evidence = [];
+      appState.suspectConversations = {
+        thomas: [],
+        eleanor: [],
+        mercer: [],
+        sophie: []
+      };
+      appState.interviewSet.clear();
+      appState.suspiciousSet.clear();
+      appState.sessionSeconds = 180;
+      appState.suspectTimers = { thomas: 180, eleanor: 180, mercer: 180, sophie: 180 };
+      appState.sessionEnded = false;
+      appState.isStreaming = false;
+      appState.nextAskAllowedAt = 0;
+      clearTimeout(appState.askCooldownHandle);
+      appState.askCooldownHandle = null;
+      appState.judged = false;
+      stopTimer();
+
+      el.analysisBox.textContent = "Awaiting analysis...";
+      el.judgeOutput.textContent = "Judge Harrison awaits your conclusion.";
+      el.reasonBox.value = "";
+      el.playAgainBtn.style.display = "none";
+
+      renderSuspectBoard();
+      renderEvidenceBoard();
+      renderVerdictOptions();
+      switchScreen("board");
+    }
+
+    function initEvents() {
+      el.beginBtn.addEventListener("click", () => {
+        switchScreen("board");
+      });
+
+      el.openEvidenceBtn.addEventListener("click", () => {
+        stopTimer();
+        // Save timer state when leaving interrogation
+        if (appState.currentSuspectId) {
+          appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        }
+        switchScreen("evidence");
+      });
+
+      el.interrogationEvidenceBtn.addEventListener("click", () => {
+        stopTimer();
+        // Save timer state when leaving interrogation
+        if (appState.currentSuspectId) {
+          appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        }
+        switchScreen("evidence");
+      });
+
+      el.backFromEvidenceBtn.addEventListener("click", () => {
+        switchScreen("board");
+        renderSuspectBoard();
+      });
+
+      el.issueVerdictBtn.addEventListener("click", () => {
+        renderVerdictOptions();
+        switchScreen("verdict");
+      });
+
+      el.backFromVerdictBtn.addEventListener("click", () => {
+        switchScreen("board");
+      });
+
+      el.askBtn.addEventListener("click", handleAsk);
+      el.questionInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !ev.shiftKey) {
+          ev.preventDefault();
+          handleAsk();
+        }
+      });
+
+      el.analyzeBtn.addEventListener("click", analyzeContradictions);
+      el.submitVerdictBtn.addEventListener("click", submitVerdict);
+      el.playAgainBtn.addEventListener("click", resetGame);
+    }
+
+    function startDust() {
+      const canvas = document.getElementById("dustCanvas");
+      const ctx = canvas.getContext("2d");
+      const particles = [];
+      const maxParticles = 30;
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      function makeParticle() {
+        return {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.9 + 0.8,
+          vx: (Math.random() - 0.5) * 0.15,
+          vy: -Math.random() * 0.09 - 0.01,
+          o: Math.random() * 0.18 + 0.06
+        };
+      }
+
+      function init() {
+        particles.length = 0;
+        for (let i = 0; i < maxParticles; i += 1) {
+          particles.push(makeParticle());
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.y < -10) {
+            p.y = canvas.height + 10;
+            p.x = Math.random() * canvas.width;
+          }
+          if (p.x < -10) p.x = canvas.width + 10;
+          if (p.x > canvas.width + 10) p.x = -10;
+
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(201, 151, 58, ${p.o})`;
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        requestAnimationFrame(draw);
+      }
+
+      resize();
+      init();
+      draw();
+      window.addEventListener("resize", resize);
+    }
+
+    function init() {
+      updateMetaClock();
+      setInterval(updateMetaClock, 1000);
+      renderSuspectBoard();
+      renderEvidenceBoard();
+      renderVerdictOptions();
+      initEvents();
+      switchScreen("board");
+      startDust();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    init();
+  </script>
+</body>
+</html>
