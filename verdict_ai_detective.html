@@ -1131,9 +1131,17 @@ Rules:
       }
     ];
 
-    const judgePrompt = `You are Judge Harrison, a stern British magistrate overseeing this murder trial.
-For verdicts: speak dramatically, reference specific evidence mentioned, reveal the truth after the verdict is delivered. Keep your verdict response concise — maximum 400 words. Always complete your sentences and thoughts. End with a definitive conclusion.
-For contradiction analysis: list specific contradictions found between suspect statements as numbered points. Be analytical and precise. Under 150 words.`;
+    const judgeVerdictPrompt = `You are Judge Harrison, a stern British magistrate overseeing this murder trial.
+  For verdicts: speak dramatically, reference specific evidence mentioned, reveal the truth after the verdict is delivered. Keep your verdict response concise — maximum 400 words. Always complete your sentences and thoughts. End with a definitive conclusion.`;
+
+    const contradictionAnalysisPrompt = `You are an investigation analyst focused only on factual consistency checking across suspect statements.
+  ONLY point out factual inconsistencies between suspect statements.
+  NEVER name a guilty party or suggest who committed the crime.
+  NEVER use words like "guilty", "murderer", "killer", or "sentenced".
+  Format output as a list of specific contradictions found, for example:
+  "Contradiction 1: Thomas claims he was in the kitchen at 9pm, but Eleanor states she saw him near the study at the same time."
+  End with exactly this sentence:
+  "The contradictions above may help narrow your investigation. The final verdict is yours to make."`;
 
     const appState = {
       currentScreen: "board",
@@ -1710,7 +1718,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       const userMessage = `Analyze contradictions in these suspect statements.\n${evidenceText}`;
 
       try {
-        const reply = await callAI(judgePrompt, userMessage);
+        const reply = await callAI(contradictionAnalysisPrompt, userMessage);
         el.analysisBox.textContent = reply;
       } catch (error) {
         el.analysisBox.textContent = `API Error: ${friendlyAIError(error)}`;
@@ -1794,7 +1802,7 @@ If the player is correct, congratulate and reveal full true story.
 If wrong, declare insufficient evidence, explain what was missed, and encourage retry.`;
 
       try {
-        const reply = await callAI(judgePrompt, userMessage);
+        const reply = await callAI(judgeVerdictPrompt, userMessage);
         el.judgeOutput.textContent = reply;
 
         appState.judged = true;
