@@ -635,7 +635,8 @@ SETUP INSTRUCTIONS
       box-shadow: 0 0 0 3px rgba(201, 151, 58, 0.14);
     }
 
-    .evidence-board {
+    .evidence-board,
+    .evidence-grid {
       background:
         radial-gradient(circle at 15% 20%, rgba(201, 151, 58, 0.08), transparent 38%),
         radial-gradient(circle at 85% 85%, rgba(201, 151, 58, 0.06), transparent 42%),
@@ -645,8 +646,10 @@ SETUP INSTRUCTIONS
       box-shadow: inset 0 0 0 1px rgba(201, 151, 58, 0.1), var(--shadow);
       padding: 16px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: auto;
       gap: 12px;
+      align-items: start;
       min-height: 300px;
     }
 
@@ -660,9 +663,11 @@ SETUP INSTRUCTIONS
       display: flex;
       flex-direction: column;
       gap: 8px;
+      height: auto;
+      min-height: 120px;
+      overflow: visible;
       transform: rotate(calc((var(--tilt, 0)) * 1deg));
       transition: transform 180ms ease;
-      min-height: 160px;
     }
 
     .evidence-card:hover {
@@ -680,11 +685,22 @@ SETUP INSTRUCTIONS
       text-transform: uppercase;
     }
 
+    .evidence-card p,
+    .evidence-card .card-text,
+    .evidence-quote {
+      overflow: visible;
+      display: block;
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      max-height: none;
+    }
+
     .evidence-quote {
       font-family: "Playfair Display", serif;
       font-style: italic;
       line-height: 1.45;
       color: #201b13;
+      overflow-wrap: anywhere;
     }
 
     .evidence-time {
@@ -707,12 +723,18 @@ SETUP INSTRUCTIONS
     .analysis-box {
       margin-top: 12px;
       min-height: 120px;
+      width: 100%;
+      display: block;
       border: 1px solid var(--divider);
       border-radius: 12px;
       padding: 12px;
       background: rgba(18, 15, 12, 0.9);
       white-space: pre-wrap;
       line-height: 1.5;
+    }
+
+    .analysis-box.loading-state {
+      margin-top: 16px;
     }
 
     .verdict-grid {
@@ -792,7 +814,8 @@ SETUP INSTRUCTIONS
         min-height: 460px;
       }
 
-      .evidence-board {
+      .evidence-board,
+      .evidence-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -805,7 +828,8 @@ SETUP INSTRUCTIONS
       .suspect-grid,
       .verdict-grid,
       .case-grid,
-      .evidence-board {
+      .evidence-board,
+      .evidence-grid {
         grid-template-columns: 1fr;
       }
 
@@ -904,7 +928,7 @@ SETUP INSTRUCTIONS
       <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn primary" id="analyzeBtn"><i data-lucide="scan-search"></i> ANALYZE CONTRADICTIONS</button>
       </div>
-      <div class="analysis-box" id="analysisBox">Awaiting analysis...</div>
+      <div class="analysis-box loading-state" id="analysisBox">Awaiting analysis...</div>
     </section>
 
     <section class="screen" id="screen-verdict">
@@ -1497,7 +1521,7 @@ For contradiction analysis: list specific contradictions found between suspect s
         card.style.setProperty("--tilt", String((Math.random() * 6 - 3).toFixed(2)));
         card.innerHTML = `
           <div class="evidence-tag">${ev.suspectName}</div>
-          <div class="evidence-quote">“${escapeHtml(ev.quote)}”</div>
+          <div class="evidence-quote card-text">“${escapeHtml(ev.quote)}”</div>
           <div class="evidence-time">${ev.time}</div>
         `;
         el.evidenceBoard.appendChild(card);
