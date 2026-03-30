@@ -141,7 +141,7 @@ const response = await fetch('http://localhost:11434/api/chat', {
 |---|---|
 | Frontend | HTML, CSS, JavaScript (Vanilla) |
 | AI Runtime | Ollama (local LLM server) |
-| Language Model | llama3.1:8b |
+| Language Model | llama3.2 |
 | Fonts | Google Fonts — Playfair Display, Inter |
 | Icons | Inline SVG |
 | Hosting | Local file / Python HTTP server |
@@ -165,7 +165,7 @@ ollama serve
 ### Step 2 — Pull the language model
 
 ```bash
-ollama pull llama3.1:8b
+ollama pull llama3.2
 ```
 
 This will take approximately 5 minutes on the first run.
