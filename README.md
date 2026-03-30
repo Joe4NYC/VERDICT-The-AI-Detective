@@ -16,8 +16,7 @@
     - [Evidence Board](#evidence-board)
     - [Contradiction Analysis](#contradiction-analysis)
     - [Verdict Room](#verdict-room)
-  - [Screenshots](#screenshots)
-  - [Gameplay Demo](#gameplay-demo)
+    - [Gameplay Video Demo](#gameplay-video-demo)
   - [Architecture](#architecture)
     - [State Management](#state-management)
     - [AI Integration](#ai-integration)
@@ -69,19 +68,7 @@ One final accusation. The AI judge evaluates the player's collected evidence and
 
 ---
 
-## Screenshots
-
-| Suspects Board | Interrogation Room |
-|---|---|
-| ![](suspects.png) | ![](interrogation.png) |
-
-| Evidence Board | Verdict Room |
-|---|---|
-| ![](evidence.png) | ![](verdict.png) |
-
----
-
-## Gameplay Demo
+### Gameplay Video Demo
 
 [![VERDICT: The AI Detective — Gameplay Demo](https://img.youtube.com/vi/lyMsVA5Z9v0/maxresdefault.jpg)](https://www.youtube.com/watch?v=lyMsVA5Z9v0)
 
