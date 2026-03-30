@@ -81,21 +81,7 @@ One final accusation. The AI judge evaluates the player's collected evidence and
 ---
 
 ## Architecture
-┌─────────────────────────────── Browser ───────────────────────────────┐
-│                                                                        │
-│  [Intro Page] ──► [Suspects Board] ──► [Interrogation Room]           │
-│                                                │                      │
-│                        ┌───────────────────────┘                      │
-│                        ▼                                               │
-│               [Evidence Board]        [Verdict Room]                  │
-│                                                                        │
-└──────────────────────────── fetch() API calls ─────────────────────────┘
-                                    │
-                                    ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│              Ollama  (Local LLM Server)  localhost:11434              │
-│                    Model: llama3.2  /  llama3.1:8b                   │
-└───────────────────────────────────────────────────────────────────────┘
+(![](structure.png))
 
 ### State Management
 
