@@ -956,6 +956,17 @@ SETUP INSTRUCTIONS
   <script type="module">
     const CASE_FILE = "VA-1015";
 
+    const gameState = {
+      suspects: {
+        thomas: { interviewed: false, suspicious: false, timerRemaining: 180 },
+        eleanor: { interviewed: false, suspicious: false, timerRemaining: 180 },
+        mercer: { interviewed: false, suspicious: false, timerRemaining: 180 },
+        sophie: { interviewed: false, suspicious: false, timerRemaining: 180 }
+      },
+      evidence: [],
+      interviewCount: 0
+    };
+
     const suspects = [
       {
         id: "thomas",
@@ -1041,17 +1052,13 @@ For contradiction analysis: list specific contradictions found between suspect s
     const appState = {
       currentScreen: "board",
       currentSuspectId: null,
-      evidence: [],
       suspectConversations: {
         thomas: [],
         eleanor: [],
         mercer: [],
         sophie: []
       },
-      interviewSet: new Set(),
-      suspiciousSet: new Set(),
       sessionSeconds: 180,
-      suspectTimers: { thomas: 180, eleanor: 180, mercer: 180, sophie: 180 },
       timerHandle: null,
       sessionEnded: false,
       isStreaming: false,
@@ -1147,11 +1154,12 @@ For contradiction analysis: list specific contradictions found between suspect s
     }
 
     function statusInfo(suspect) {
-      const suspicious = appState.suspiciousSet.has(suspect.id);
+      const suspectState = gameState.suspects[suspect.id];
+      const suspicious = suspectState?.suspicious;
       if (suspicious) {
         return { label: "SUSPICIOUS", cls: "status-suspicious" };
       }
-      if (appState.interviewSet.has(suspect.id)) {
+      if (suspectState?.interviewed) {
         return { label: "INTERVIEWED", cls: "status-interviewed" };
       }
       return { label: "NOT INTERVIEWED", cls: "status-not-interviewed" };
@@ -1169,7 +1177,7 @@ For contradiction analysis: list specific contradictions found between suspect s
         card.className = "suspect-card";
         card.dataset.id = suspect.id;
 
-        const isSuspicious = appState.suspiciousSet.has(suspect.id);
+        const isSuspicious = gameState.suspects[suspect.id]?.suspicious;
 
         card.innerHTML = `
           <div class="avatar">${suspect.initials}</div>
@@ -1191,8 +1199,8 @@ For contradiction analysis: list specific contradictions found between suspect s
         el.suspectGrid.appendChild(card);
       });
 
-      el.evidenceCount.textContent = `EVIDENCE: ${appState.evidence.length}`;
-      el.issueVerdictBtn.disabled = appState.interviewSet.size < 3;
+      el.evidenceCount.textContent = `EVIDENCE: ${gameState.evidence.length}`;
+      el.issueVerdictBtn.disabled = gameState.interviewCount < 3;
       if (window.lucide) window.lucide.createIcons();
     }
 
@@ -1212,11 +1220,7 @@ For contradiction analysis: list specific contradictions found between suspect s
     }
 
     function toggleSuspicious(id) {
-      if (appState.suspiciousSet.has(id)) {
-        appState.suspiciousSet.delete(id);
-      } else {
-        appState.suspiciousSet.add(id);
-      }
+      gameState.suspects[id].suspicious = !gameState.suspects[id].suspicious;
       renderSuspectBoard();
       if (appState.currentScreen === "interrogation" && appState.currentSuspectId === id) {
         renderInterrogationLeft();
@@ -1227,7 +1231,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       const suspect = getSuspectById(appState.currentSuspectId);
       if (!suspect) return;
       const info = statusInfo(suspect);
-      const fp = appState.suspiciousSet.has(suspect.id) ? '<div class="fingerprint" aria-hidden="true"></div>' : "";
+      const fp = gameState.suspects[suspect.id]?.suspicious ? '<div class="fingerprint" aria-hidden="true"></div>' : "";
 
       el.interrogationLeft.innerHTML = `
         <div style="position:relative;">
@@ -1256,7 +1260,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       el.interrogationLeft.querySelector("#backToSuspectsBtn").addEventListener("click", () => {
         stopTimer();
         // Save timer state before leaving
-        appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        gameState.suspects[appState.currentSuspectId].timerRemaining = appState.sessionSeconds;
         switchScreen("board");
         renderSuspectBoard();
       });
@@ -1311,7 +1315,7 @@ For contradiction analysis: list specific contradictions found between suspect s
     function openInterrogation(suspectId) {
       appState.currentSuspectId = suspectId;
       // Restore timer from persistent storage; check if session already expired
-      appState.sessionSeconds = appState.suspectTimers[suspectId] || 180;
+      appState.sessionSeconds = gameState.suspects[suspectId].timerRemaining;
       appState.sessionEnded = appState.sessionSeconds <= 0;
       const suspect = getSuspectById(suspectId);
       el.chatTitle.textContent = `Interrogation: ${suspect.name}`;
@@ -1328,10 +1332,10 @@ For contradiction analysis: list specific contradictions found between suspect s
       appState.timerHandle = setInterval(() => {
         appState.sessionSeconds -= 1;
         // Save remaining time to persistent storage
-        appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+        gameState.suspects[appState.currentSuspectId].timerRemaining = appState.sessionSeconds;
         if (appState.sessionSeconds <= 0) {
           appState.sessionSeconds = 0;
-          appState.suspectTimers[appState.currentSuspectId] = 0;
+          gameState.suspects[appState.currentSuspectId].timerRemaining = 0;
           tickTimer();
           endSessionByTimeout();
           return;
@@ -1397,8 +1401,9 @@ For contradiction analysis: list specific contradictions found between suspect s
     }
 
     function markInterviewed(suspectId) {
-      if (!appState.interviewSet.has(suspectId)) {
-        appState.interviewSet.add(suspectId);
+      if (!gameState.suspects[suspectId].interviewed) {
+        gameState.suspects[suspectId].interviewed = true;
+        gameState.interviewCount += 1;
         renderSuspectBoard();
       }
     }
@@ -1477,8 +1482,8 @@ For contradiction analysis: list specific contradictions found between suspect s
         quote: quote.trim(),
         time: nowStamp()
       };
-      appState.evidence.push(item);
-      el.evidenceCount.textContent = `EVIDENCE: ${appState.evidence.length}`;
+      gameState.evidence.push(item);
+      el.evidenceCount.textContent = `EVIDENCE: ${gameState.evidence.length}`;
       renderEvidenceBoard();
       renderSuspectBoard();
       animateEvidenceFly(sourceBtn);
@@ -1507,7 +1512,7 @@ For contradiction analysis: list specific contradictions found between suspect s
 
     function renderEvidenceBoard() {
       el.evidenceBoard.innerHTML = "";
-      if (!appState.evidence.length) {
+      if (!gameState.evidence.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
         empty.textContent = "No evidence collected yet. Start interrogating suspects.";
@@ -1515,7 +1520,7 @@ For contradiction analysis: list specific contradictions found between suspect s
         return;
       }
 
-      appState.evidence.forEach((ev) => {
+      gameState.evidence.forEach((ev) => {
         const card = document.createElement("article");
         card.className = "evidence-card";
         card.style.setProperty("--tilt", String((Math.random() * 6 - 3).toFixed(2)));
@@ -1538,7 +1543,7 @@ For contradiction analysis: list specific contradictions found between suspect s
     }
 
     async function analyzeContradictions() {
-      if (!appState.evidence.length) {
+      if (!gameState.evidence.length) {
         el.analysisBox.textContent = "No evidence available for analysis.";
         return;
       }
@@ -1546,7 +1551,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       el.analyzeBtn.disabled = true;
       el.analysisBox.textContent = "Analyzing contradictions...";
 
-      const evidenceText = appState.evidence
+      const evidenceText = gameState.evidence
         .map((e, i) => `${i + 1}. [${e.suspectName} at ${e.time}] ${e.quote}`)
         .join("\n");
 
@@ -1623,7 +1628,7 @@ For contradiction analysis: list specific contradictions found between suspect s
 
       const chosen = getSuspectById(suspectId);
       const reasoning = el.reasonBox.value.trim();
-      const evidenceSummary = appState.evidence
+      const evidenceSummary = gameState.evidence
         .map((e, i) => `${i + 1}. [${e.suspectName}] ${e.quote}`)
         .join("\n");
 
@@ -1652,17 +1657,20 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
     function resetGame() {
       appState.currentScreen = "board";
       appState.currentSuspectId = null;
-      appState.evidence = [];
+      Object.values(gameState.suspects).forEach((suspectState) => {
+        suspectState.interviewed = false;
+        suspectState.suspicious = false;
+        suspectState.timerRemaining = 180;
+      });
+      gameState.evidence = [];
+      gameState.interviewCount = 0;
       appState.suspectConversations = {
         thomas: [],
         eleanor: [],
         mercer: [],
         sophie: []
       };
-      appState.interviewSet.clear();
-      appState.suspiciousSet.clear();
       appState.sessionSeconds = 180;
-      appState.suspectTimers = { thomas: 180, eleanor: 180, mercer: 180, sophie: 180 };
       appState.sessionEnded = false;
       appState.isStreaming = false;
       appState.nextAskAllowedAt = 0;
@@ -1691,7 +1699,7 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
         stopTimer();
         // Save timer state when leaving interrogation
         if (appState.currentSuspectId) {
-          appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+          gameState.suspects[appState.currentSuspectId].timerRemaining = appState.sessionSeconds;
         }
         switchScreen("evidence");
       });
@@ -1700,7 +1708,7 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
         stopTimer();
         // Save timer state when leaving interrogation
         if (appState.currentSuspectId) {
-          appState.suspectTimers[appState.currentSuspectId] = appState.sessionSeconds;
+          gameState.suspects[appState.currentSuspectId].timerRemaining = appState.sessionSeconds;
         }
         switchScreen("evidence");
       });
