@@ -829,6 +829,56 @@ SETUP INSTRUCTIONS
       }
     }
 
+    @keyframes pulse-green {
+      0% { background: currentColor; }
+      50% { background: #4a7c59; transform: scale(1.02); }
+      100% { background: currentColor; }
+    }
+
+    .evidence-btn-added {
+      animation: pulse-green 320ms ease;
+    }
+
+    .toast-stack {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 220;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(22, 19, 16, 0.95);
+      color: #e7dfcf;
+      border: 1px solid rgba(201, 151, 58, 0.42);
+      border-radius: 10px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(-6px);
+      animation: toast-in 170ms ease forwards;
+    }
+
+    @keyframes toast-in {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toast-out {
+      to {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+    }
+
     @media (max-width: 1100px) {
       .briefing-layout {
         grid-template-columns: 1fr;
@@ -874,6 +924,7 @@ SETUP INSTRUCTIONS
 <body>
   <canvas id="dustCanvas"></canvas>
   <div class="global-meta" id="globalMeta">CASE FILE #VA-1015 • --</div>
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
   <div id="app">
     <section class="screen" id="screen-briefing">
@@ -1100,6 +1151,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       askCooldownMs: 2000,
       nextAskAllowedAt: 0,
       askCooldownHandle: null,
+      evidenceFeedbackTimers: new Map(),
       judged: false
     };
 
@@ -1128,6 +1180,7 @@ For contradiction analysis: list specific contradictions found between suspect s
       interrogationEvidenceBtn: document.getElementById("interrogationEvidenceBtn"),
       evidenceBoard: document.getElementById("evidenceBoard"),
       backFromEvidenceBtn: document.getElementById("backFromEvidenceBtn"),
+      toastStack: document.getElementById("toastStack"),
       analyzeBtn: document.getElementById("analyzeBtn"),
       analysisBox: document.getElementById("analysisBox"),
       verdictOptions: document.getElementById("verdictOptions"),
@@ -1352,9 +1405,14 @@ For contradiction analysis: list specific contradictions found between suspect s
         controls.className = "message-controls";
         const addBtn = document.createElement("button");
         addBtn.className = "btn ghost tiny";
-        addBtn.innerHTML = "📌 ADD TO EVIDENCE";
+        const saved = Boolean(entry.evidenceSaved);
+        const recentlyAdded = saved && (Date.now() - (entry.evidenceSavedAt || 0) < 2000);
+        addBtn.textContent = saved ? (recentlyAdded ? "✓ ADDED" : "ALREADY SAVED") : "ADD TO EVIDENCE";
+        addBtn.disabled = saved;
+        addBtn.classList.toggle("evidence-btn-added", recentlyAdded);
+        addBtn.classList.toggle("disabled", saved);
         addBtn.addEventListener("click", (ev) => {
-          addEvidenceFromMessage(suspectId, entry.text, ev.currentTarget);
+          addEvidenceFromMessage(suspectId, index, entry.text, ev.currentTarget);
         });
         controls.appendChild(addBtn);
         wrapper.appendChild(controls);
@@ -1523,8 +1581,29 @@ For contradiction analysis: list specific contradictions found between suspect s
       }
     }
 
-    function addEvidenceFromMessage(suspectId, quote, sourceBtn) {
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = message;
+      el.toastStack.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.animation = "toast-out 170ms ease forwards";
+      }, 1800);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 2000);
+    }
+
+    function addEvidenceFromMessage(suspectId, messageIndex, quote, sourceBtn) {
       if (!quote.trim()) return;
+      const convo = appState.suspectConversations[suspectId];
+      const message = convo[messageIndex];
+      if (!message || message.evidenceSaved) {
+        return;
+      }
+
       const suspect = getSuspectById(suspectId);
       const item = {
         id: crypto.randomUUID(),
@@ -1533,11 +1612,33 @@ For contradiction analysis: list specific contradictions found between suspect s
         quote: quote.trim(),
         time: nowStamp()
       };
+
+      message.evidenceSaved = true;
+      message.evidenceSavedAt = Date.now();
       gameState.evidence.push(item);
       el.evidenceCount.textContent = `EVIDENCE: ${gameState.evidence.length}`;
       renderEvidenceBoard();
       renderSuspectBoard();
       animateEvidenceFly(sourceBtn);
+
+      sourceBtn.classList.add("evidence-btn-added");
+      sourceBtn.textContent = "✓ ADDED";
+      sourceBtn.disabled = true;
+      sourceBtn.classList.add("disabled");
+      showToast("Evidence recorded");
+
+      const timerKey = `${suspectId}:${messageIndex}`;
+      const existingTimer = appState.evidenceFeedbackTimers.get(timerKey);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const timer = setTimeout(() => {
+        sourceBtn.classList.remove("evidence-btn-added");
+        sourceBtn.textContent = "ALREADY SAVED";
+      }, 2000);
+
+      appState.evidenceFeedbackTimers.set(timerKey, timer);
     }
 
     function animateEvidenceFly(sourceBtn) {
@@ -1727,6 +1828,8 @@ If wrong, declare insufficient evidence, explain what was missed, and encourage 
       appState.nextAskAllowedAt = 0;
       clearTimeout(appState.askCooldownHandle);
       appState.askCooldownHandle = null;
+      appState.evidenceFeedbackTimers.forEach((timer) => clearTimeout(timer));
+      appState.evidenceFeedbackTimers.clear();
       appState.judged = false;
       stopTimer();
 
