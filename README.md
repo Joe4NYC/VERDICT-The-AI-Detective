@@ -28,10 +28,8 @@
     - [Step 2 — Pull the language model](#step-2--pull-the-language-model)
     - [Step 3 — Run the game](#step-3--run-the-game)
   - [Game Rules](#game-rules)
-  - [Project Structure](#project-structure)
   - [The Suspects](#the-suspects)
   - [Future Improvements](#future-improvements)
-  - [Built At](#built-at)
   - [License](#license)
 
 ---
@@ -74,39 +72,30 @@ One final accusation. The AI judge evaluates the player's collected evidence and
 
 | Suspects Board | Interrogation Room |
 |---|---|
-| ![](./screenshots/suspects.png) | ![](./screenshots/interrogation.png) |
+| ![](suspects.png) | ![](interrogation.png) |
 
 | Evidence Board | Verdict Room |
 |---|---|
-| ![](./screenshots/evidence.png) | ![](./screenshots/verdict.png) |
+| ![](evidence.png) | ![](verdict.png) |
 
 ---
 
 ## Architecture
-┌─────────────────────────────────────────────────────┐
-│ Browser (HTML/CSS/JS) │
-│ │
-│ ┌──────────┐ ┌────────────┐ ┌────────────────┐ │
-│ │ Intro │→ │ Suspects │→ │ Interrogation │ │
-│ │ Page │ │ Board │ │ Room │ │
-│ └──────────┘ └────────────┘ └───────┬────────┘ │
-│ │ │
-│ ┌───────────────────────┘ │
-│ ↓ │
-│ ┌─────────────────┐ ┌──────────────────┐ │
-│ │ Evidence Board │ │ Verdict Room │ │
-│ └─────────────────┘ └──────────────────┘ │
-└─────────────────────────────┬───────────────────────┘
-│ fetch() API calls
-↓
-┌─────────────────────────────────────────────────────┐
-│ Ollama (Local LLM Server) │
-│ localhost:11434 │
-│ │
-│ Model: llama3.1:8b (or llama3.2) │
-└─────────────────────────────────────────────────────┘
-
-text
+┌─────────────────────────────── Browser ───────────────────────────────┐
+│                                                                        │
+│  [Intro Page] ──► [Suspects Board] ──► [Interrogation Room]           │
+│                                                │                      │
+│                        ┌───────────────────────┘                      │
+│                        ▼                                               │
+│               [Evidence Board]        [Verdict Room]                  │
+│                                                                        │
+└──────────────────────────── fetch() API calls ─────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│              Ollama  (Local LLM Server)  localhost:11434              │
+│                    Model: llama3.2  /  llama3.1:8b                   │
+└───────────────────────────────────────────────────────────────────────┘
 
 ### State Management
 
@@ -206,8 +195,6 @@ This will take approximately 5 minutes on the first run.
 Option A — Open directly in browser:
 Open index.html in your browser
 
-text
-
 Option B — Run with a local server:
 ```bash
 python3 -m http.server 8000
@@ -222,23 +209,6 @@ Then visit `http://localhost:8000`
 2. **Collect Evidence** — Save important responses to your evidence board using the ADD TO EVIDENCE button.
 3. **Analyze** — Use the ANALYZE CONTRADICTIONS feature to surface inconsistencies across suspect statements.
 4. **Verdict** — Interview at least 2 suspects to unlock the ISSUE VERDICT button. You have one accusation. Choose carefully.
-
----
-
-## Project Structure
-verdict/
-├── index.html ← Intro / landing page
-├── verdict.html ← Main game
-├── README.md
-└── screenshots/
-├── hero.png
-├── suspects.png
-├── interrogation.png
-├── evidence.png
-├── contradiction.png
-└── verdict.png
-
-text
 
 ---
 
@@ -261,14 +231,6 @@ text
 - Mobile-optimised layout
 - Save and resume case progress
 - Multiple difficulty levels affecting how well suspects conceal lies
-
----
-
-## Built At
-
-**Hackiethon 2026**
-University of Melbourne — March 2026
-Theme: AI API Integration in Games
 
 ---
 
