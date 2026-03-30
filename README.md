@@ -81,7 +81,7 @@ One final accusation. The AI judge evaluates the player's collected evidence and
 ---
 
 ## Architecture
-(![](structure.png))
+![](structure.png)
 
 ### State Management
 
@@ -222,4 +222,4 @@ Then visit `http://localhost:8000`
 
 ## License
 
-This project is for educational and portfolio purposes.****
+**This project is for educational and portfolio purposes.**
