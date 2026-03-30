@@ -108,7 +108,7 @@ const response = await fetch('http://localhost:11434/api/chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    model: 'llama3.1:8b',
+    model: 'llama3.2',
     messages: [
       { role: 'system', content: suspectSystemPrompt },
       ...conversationHistory,
