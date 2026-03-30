@@ -2,7 +2,7 @@
 
 > A noir detective game powered by local AI. Interrogate suspects, collect evidence, and issue the final verdict.
 
-![Game Screenshot](./screenshots/hero.png)
+![Game Screenshot](hero.png)
 
 ---
 
@@ -51,22 +51,22 @@ The player takes on the role of a detective investigating the death of **Victor 
 ### AI-Powered Interrogation
 Each suspect responds dynamically to any question the player asks. The AI stays in character, maintains its lie, and subtly shifts its story when pressured.
 
-![Interrogation Screenshot](./screenshots/interrogation.png)
+![Interrogation Screenshot](interrogation.png)
 
 ### Evidence Board
 Players collect key statements and build a case visually. Nothing is pre-scripted — the evidence board fills with real AI-generated responses.
 
-![Evidence Board Screenshot](./screenshots/evidence.png)
+![Evidence Board Screenshot](evidence.png)
 
 ### Contradiction Analysis
 A dedicated AI analysis pass compares collected evidence across suspects and surfaces factual inconsistencies — without revealing the killer.
 
-![Contradiction Screenshot](./screenshots/contradiction.png)
+![Contradiction Screenshot](contradiction.png)
 
 ### Verdict Room
 One final accusation. The AI judge evaluates the player's collected evidence and delivers a dramatic ruling.
 
-![Verdict Screenshot](./screenshots/verdict.png)
+![Verdict Screenshot](verdict.png)
 
 ---
 
