@@ -122,7 +122,7 @@ const response = await fetch('http://localhost:11434/api/chat', {
 
 ---
 
-## Features
+## Features 
 
 - **4 AI suspects** — each with a unique personality, alibi, and hidden lie
 - **Per-suspect conversation history** — the AI remembers what was said earlier in the same interrogation
