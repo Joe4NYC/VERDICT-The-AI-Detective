@@ -34,7 +34,7 @@
 
 ---
 
-## Overview
+## Overview 
 
 **VERDICT: The AI Detective** is a browser-based murder mystery game built for **[Hackiethon 2026](https://devpost.com/software/verdict-the-ai-detective#updates)**.
 
