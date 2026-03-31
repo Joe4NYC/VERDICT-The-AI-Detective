@@ -135,7 +135,7 @@ const response = await fetch('http://localhost:11434/api/chat', {
 
 ---
 
-## Tech Stack
+## Tech Stack 
 
 | Layer | Technology |
 |---|---|
